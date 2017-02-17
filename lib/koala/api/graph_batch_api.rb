@@ -22,7 +22,7 @@ module Koala
         # normalize options for consistency
         options = Koala::Utils.symbolize_hash(options)
 
-        # for batch APIs, we queue up the call details (incl. post-processing)        
+        # for batch APIs, we queue up the call details (incl. post-processing)
         batch_calls << BatchOperation.new(
           :url => path,
           :args => args,
@@ -49,16 +49,22 @@ module Koala
           batch_op.to_batch_params(access_token)
         })
 
-        batch_result = graph_call_outside_batch('/', args, 'post', http_options) do |response|
-          unless response
+        batch_result = graph_call_outside_batch('/', args, 'post', http_options.merge(http_component: :response)) do |response|
+          response_body = MultiJson.load("[#{response.body}]")[0]
+
+          if response_body.nil?
             # Facebook sometimes reportedly returns an empty body at times
             # see https://github.com/arsduo/koala/issues/184
             raise BadFacebookResponse.new(200, '', "Facebook returned an empty body")
           end
 
+          unless response_body.is_a?(Array)
+            raise BadFacebookResponse.new(200, '', "Facebook returned an invalid body")
+          end
+
           # map the results with post-processing included
           index = 0 # keep compat with ruby 1.8 - no with_index for map
-          response.map do |call_result|
+          response_body.map do |call_result|
             # Get the options hash
             batch_op = batch_calls[index]
             index += 1
@@ -76,8 +82,13 @@ module Koala
                 when :status
                   call_result["code"].to_i
                 when :headers
-                  # facebook returns the headers as an array of k/v pairs, but we want a regular hash
-                  call_result['headers'].inject({}) { |headers, h| headers[h['name']] = h['value']; headers}
+                  format_headers(call_result['headers'])
+                when :response
+                  Koala::HTTPService::Response.new(
+                    call_result["code"].to_i,
+                    call_result["body"],
+                    format_headers(call_result['headers'])
+                  )
                 else
                   body
                 end
@@ -96,6 +107,15 @@ module Koala
         end
       end
 
+      private
+
+      # facebook returns the headers as an array of k/v pairs, but we want a regular hash
+      def format_headers(http_headers)
+        http_headers.inject({}) do |headers, h|
+          headers[h['name']] = h['value']
+          headers
+        end
+      end
     end
   end
 end
