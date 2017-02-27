@@ -1,3 +1,4 @@
+require 'byebug'
 require 'koala/api'
 require 'koala/api/batch_operation'
 
@@ -45,13 +46,14 @@ module Koala
           args.merge! call.files || {}
         end
 
-        original_api.graph_call('/', args, 'post', http_options, &handle_response)
+        original_api.graph_call('/', args, 'post', http_options.merge(http_component: :response), &handle_response)
       end
 
       def handle_response
         lambda do |response|
-          raise bad_response if response.nil?
-          response.map(&generate_results)
+          response_body = MultiJson.load("[#{response.body}]")[0]
+          raise bad_response if response_body.nil?
+          response_body.map(&generate_results)
         end
       end
 
@@ -129,11 +131,18 @@ module Koala
         response  = options.fetch(:response)
         headers   = options.fetch(:headers)
 
+        byebug
         # Get the HTTP component they want
         case component
         when :status  then response['code'].to_i
         # facebook returns the headers as an array of k/v pairs, but we want a regular hash
         when :headers then headers
+        when :response
+          Koala::HTTPService::Response.new(
+            response['code'].to_i,
+            json_body(response),
+            headers
+          )
         # (see note in regular api method about JSON parsing)
         else json_body(response)
         end

@@ -437,6 +437,17 @@ describe "Koala::Facebook::GraphAPI in batch mode" do
           end
           expect(result[0]).to eq(203)
         end
+
+        it "returns an instance of Koala::HTTPService::Response if http_component is response" do
+          allow(Koala).to receive(:make_request).and_return(Koala::HTTPService::Response.new(200, '[{"code":203,"headers":[{"name":"Content-Type","value":"text/javascript; charset=UTF-8"}],"body":"{\"id\":\"1234\"}"}]', {}))
+          result = @api.batch do |batch_api|
+            batch_api.get_object(KoalaTest.user1, {}, :http_component => :response)
+          end
+          expect(result[0]).to be_an_instance_of(Koala::HTTPService::Response)
+          expect(result[0].status).to eq(203)
+          expect(result[0].headers).to eq({"Content-Type"=>"text/javascript; charset=UTF-8"})
+          expect(result[0].body).to eq("{\"id\":\"1234\"}")
+        end
       end
 
       it "is thread safe" do
