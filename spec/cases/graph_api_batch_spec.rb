@@ -395,6 +395,15 @@ describe "Koala::Facebook::GraphAPI in batch mode" do
             }.to raise_exception(Koala::Facebook::BadFacebookResponse, /Facebook returned an invalid body \[HTTP 200\]/)
           end
 
+          it 'raises a BadFacebookresponse if the body is an unparsable string' do
+            allow(Koala).to receive(:make_request).and_return(Koala::HTTPService::Response.new(200,
+              '[{"code":203,"headers":[{"name":"Content-Type","value":"text/javascript; charset=UTF-8"}],"body":"\u0643\\u060c \\u0628\\u0644 \]
+              "}]', {}))
+            expect {
+              Koala::Facebook::API.new("foo").batch {|batch_api| batch_api.get_object('me') }
+            }.to raise_exception(Koala::Facebook::BadFacebookResponse, /Facebook returned an invalid body \[HTTP 200\]/)
+          end
+
           context "with the old style" do
             before :each do
               allow(Koala).to receive(:make_request).and_return(Koala::HTTPService::Response.new(400, '{"error_code":190,"error_description":"Error validating access token."}', {}))

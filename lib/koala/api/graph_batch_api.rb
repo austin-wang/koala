@@ -50,7 +50,13 @@ module Koala
         })
 
         batch_result = graph_call_outside_batch('/', args, 'post', http_options.merge(http_component: :response)) do |response|
-          response_body = MultiJson.load("[#{response.body}]")[0]
+          # Prevents invalid json (e.g HTML code) from breaking the parser used
+          # to process the API call
+          response_body = begin
+            MultiJson.load("[#{response.body}]")[0]
+          rescue MultiJson::ParseError => e
+            raise BadFacebookResponse.new(200, '', "Facebook returned an invalid body")
+          end
 
           if response_body.nil?
             # Facebook sometimes reportedly returns an empty body at times
