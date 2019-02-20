@@ -55,7 +55,7 @@ module Koala
           response_body = begin
             MultiJson.load("[#{response.body}]")[0]
           rescue MultiJson::ParseError => e
-            raise BadFacebookResponse.new(200, '', "Facebook returned an invalid body")
+            raise BadFacebookResponse.new(200, '', "Facebook returned an invalid body #{e.message}")
           end
 
           if response_body.nil?
