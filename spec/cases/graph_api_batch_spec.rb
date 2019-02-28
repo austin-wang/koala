@@ -401,7 +401,7 @@ describe "Koala::Facebook::GraphAPI in batch mode" do
               "}]', {}))
             expect {
               Koala::Facebook::API.new("foo").batch {|batch_api| batch_api.get_object('me') }
-            }.to raise_exception(Koala::Facebook::BadFacebookResponse, /Facebook returned an invalid body \[HTTP 200\]/)
+            }.to raise_exception(Koala::Facebook::BadFacebookResponse, /Facebook returned an invalid body * MultiJson::ParseError/)
           end
 
           context "with the old style" do
