@@ -52,15 +52,10 @@ module Koala
         batch_result = graph_call_outside_batch('/', args, 'post', http_options.merge(http_component: :response)) do |response|
           response_body = load_json(response.body)
 
-          if response_body.nil?
-            # Facebook sometimes reportedly returns an empty body at times
-            # see https://github.com/arsduo/koala/issues/184
-            raise BadFacebookResponse.new(200, '', "Facebook returned an empty body")
-          end
-
-          unless response_body.is_a?(Array)
-            raise BadFacebookResponse.new(200, '', "Facebook returned an invalid body")
-          end
+          # Facebook sometimes reportedly returns an empty body at times
+          # see https://github.com/arsduo/koala/issues/184
+          raise bad_response("Facebook returned an empty body") if response_body.nil?
+          raise bad_response("Facebook returned an invalid body") unless response_body.is_a?(Array)
 
           # map the results with post-processing included
           index = 0 # keep compat with ruby 1.8 - no with_index for map
@@ -71,7 +66,7 @@ module Koala
 
             raw_result = nil
             if call_result
-              if ( error = check_response(call_result['code'], call_result['body'].to_s) )
+              if (error = check_response(call_result['code'], call_result['body'].to_s))
                 raw_result = error
               else
                 # (see note in regular api method about JSON parsing)
@@ -123,6 +118,10 @@ module Koala
         MultiJson.load("[#{response_body}]")[0]
       rescue MultiJson::ParseError => e
         raise BadFacebookResponse.new(200, '', "Facebook returned an invalid body #{e.class} #{e.message}")
+      end
+
+      def bad_response(message)
+        BadFacebookResponse.new(200, '', message)
       end
     end
   end
