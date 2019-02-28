@@ -117,7 +117,8 @@ module Koala
       def load_json(response_body)
         MultiJson.load("[#{response_body}]")[0]
       rescue MultiJson::ParseError => e
-        raise BadFacebookResponse.new(200, '', "Facebook returned an invalid body #{e.class} #{e.message}")
+        raise bad_response("Facebook returned an invalid body #{e.class} #{e.message} " \
+          "- For body: #{response_body.force_encoding('ASCII-8BIT')}")
       end
 
       def bad_response(message)
